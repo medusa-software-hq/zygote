@@ -1,17 +1,13 @@
-#region Root GCP project
-
-resource "random_id" "root_project_suffix" {
-  byte_length = 4
+# Constants
+locals {
+  gcp_root_project_id          = "ms-root-cc216992"
+  gcp_root_tfstate_bucket_name = "ms-root-tfstate-9d350b22"
 }
 
-resource "google_project" "root" {
-  org_id          = data.google_organization.gcp_organization.org_id
-  billing_account = data.google_billing_account.gcp_billing_account.id
+#region Root GCP project
 
-  name       = "root"
-  project_id = "ms-root-${random_id.root_project_suffix.hex}"
-
-  auto_create_network = false
+data "google_project" "root" {
+  project_id = local.gcp_root_project_id
 }
 
 resource "google_project_service" "root" {
@@ -19,7 +15,7 @@ resource "google_project_service" "root" {
     "storage.googleapis.com",
   ])
 
-  project            = google_project.root.id
+  project            = data.google_project.root.id
   service            = each.key
   disable_on_destroy = false
 }
@@ -28,40 +24,8 @@ resource "google_project_service" "root" {
 
 #region Root Terraform state bucket
 
-resource "random_id" "root_tfstate_bucket_suffix" {
-  byte_length = 4
-}
-
-resource "google_storage_bucket" "root_tfstate" {
-  name          = "ms-root-tfstate-${random_id.root_tfstate_bucket_suffix.hex}"
-  project       = google_project.root.project_id
-  location      = local.primary_location
-  storage_class = "STANDARD"
-
-  # Force destroy allows Terraform to delete the bucket even if it has files inside
-  force_destroy = true
-
-  # Enforce uniform bucket-level access (security best practice)
-  uniform_bucket_level_access = true
-
-  # Prevent the bucket from being accidentally made public
-  public_access_prevention = "enforced"
-
-  # Keep old versions of files safe from accidental deletion
-  versioning {
-    enabled = true
-  }
-
-  # Automatically clean up or move old files
-  lifecycle_rule {
-    condition {
-      age = 30 # days
-    }
-
-    action {
-      type = "Delete"
-    }
-  }
+data "google_storage_bucket" "root_tfstate" {
+  name          = local.gcp_root_tfstate_bucket_name
 }
 
 #endregion
@@ -70,12 +34,12 @@ resource "google_storage_bucket" "root_tfstate" {
 
 output "gcp_root_project_id" {
   description = "GCP root project ID."
-  value       = google_project.root.project_id
+  value       = data.google_project.root.project_id
 }
 
 output "root_tfstate_bucket_name" {
   description = "GCP root Terraform state bucket name."
-  value       = google_storage_bucket.root_tfstate.name
+  value       = data.google_storage_bucket.root_tfstate.name
 }
 
 #endregion

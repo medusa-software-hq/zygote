@@ -8,6 +8,11 @@ locals {
 terraform {
   required_version = ">= 1.15"
 
+  backend "gcs" {
+    bucket = "ms-root-tfstate-9d350b22"
+    prefix = "zygote"
+  }
+
   required_providers {
     google = {
       source  = "hashicorp/google"
