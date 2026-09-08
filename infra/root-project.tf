@@ -1,9 +1,3 @@
-# Constants
-locals {
-  gcp_root_project_id          = "ms-root-cc216992"
-  gcp_root_tfstate_bucket_name = "ms-root-tfstate-9d350b22"
-}
-
 #region Root GCP project
 
 data "google_project" "root" {
@@ -12,23 +6,35 @@ data "google_project" "root" {
 
 resource "google_project_service" "root" {
   for_each = toset([
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
     "storage.googleapis.com",
+    "sts.googleapis.com",
   ])
 
-  project            = data.google_project.root.id
+  project            = data.google_project.root.project_id
   service            = each.key
   disable_on_destroy = false
 }
 
 #endregion
 
-#region Root Terraform state bucket
-
+# Root Terraform state bucket
 data "google_storage_bucket" "root_tfstate" {
-  name          = local.gcp_root_tfstate_bucket_name
+  name = local.gcp_root_tfstate_bucket_name
 }
 
-#endregion
+# Root workload identity pool
+resource "google_iam_workload_identity_pool" "root" {
+  project                   = data.google_project.root.project_id
+  workload_identity_pool_id = "root-pool"
+  display_name              = "Root"
+  description               = "Root workload identity pool."
+  disabled                  = false
+
+  depends_on = [google_project_service.root]
+}
 
 #region Outputs
 
