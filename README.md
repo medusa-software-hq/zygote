@@ -1,1 +1,1 @@
-# zygote
+# Medusa Platform Zygote
