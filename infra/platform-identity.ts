@@ -1,6 +1,7 @@
 import * as gcp from '@pulumi/gcp';
 import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
+import { ESC_ENVIRONMENT, ESC_PROJECT, escSubject, pulumiOrganization } from './platform-stack.ts';
 
 /**
  * The identity the platform stack runs as.
@@ -12,11 +13,6 @@ import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
  * that lets Pulumi Cloud assume it, and the grants that give it power are all things
  * platform must not be able to rewrite for itself.
  */
-
-const config = new pulumi.Config();
-
-/** Pulumi Cloud organization, which is also the audience it issues tokens for. */
-const pulumiOrganization = config.require('pulumiOrganization');
 
 const dependsOn = { dependsOn: bootstrapServices };
 
@@ -39,12 +35,11 @@ export const poolProvider = new gcp.iam.WorkloadIdentityPoolProvider(
     workloadIdentityPoolProviderId: 'pulumi-cloud',
     displayName: 'Pulumi Cloud',
 
+    // Only the subject. Every mapped attribute becomes a grantable principal, and an
+    // attribute nothing binds to is a principal nobody meant to create — the audience
+    // in particular is identical for every environment in the organization.
     attributeMapping: {
       'google.subject': 'assertion.sub',
-      // Constant for a given Pulumi organization, which is what the binding below
-      // keys on. The subject also carries the organization but its shape is Pulumi's
-      // to change, so it is a poor thing to pin.
-      'attribute.pulumi_audience': 'assertion.aud',
     },
 
     oidc: {
@@ -77,5 +72,6 @@ export const platformServiceAccount = new gcp.serviceaccount.Account(
 new gcp.serviceaccount.IAMMember('platform-workload-identity', {
   serviceAccountId: platformServiceAccount.name,
   role: 'roles/iam.workloadIdentityUser',
-  member: pulumi.interpolate`principalSet://iam.googleapis.com/${pool.name}/attribute.pulumi_audience/gcp:${pulumiOrganization}`,
+  // `principal://` with an exact subject, not a set: one environment, one account.
+  member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
 });
