@@ -2,6 +2,14 @@ import * as pulumi from '@pulumi/pulumi';
 import * as service from '@pulumi/pulumiservice';
 import { bootstrapProject } from './bootstrap-project.ts';
 import { platformServiceAccount, pool, poolProvider } from './platform-identity.ts';
+import {
+  ESC_ENVIRONMENT,
+  ESC_PROJECT,
+  PLATFORM_PROJECT,
+  PLATFORM_REPOSITORY,
+  PLATFORM_STACK,
+  pulumiOrganization,
+} from './platform-stack.ts';
 
 /**
  * How the platform stack runs.
@@ -14,16 +22,6 @@ import { platformServiceAccount, pool, poolProvider } from './platform-identity.
  * below is composed from those outputs rather than transcribed — there is no second
  * copy of an identifier to drift.
  */
-
-const config = new pulumi.Config();
-const pulumiOrganization = config.require('pulumiOrganization');
-
-const PLATFORM_REPOSITORY = 'medusa-software-hq/platform';
-const PLATFORM_PROJECT = 'medusa-platform';
-const PLATFORM_STACK = 'main';
-
-const ESC_PROJECT = 'platform';
-const ESC_ENVIRONMENT = 'gcp';
 
 /**
  * Mints a short-lived GCP credential by OIDC. Referenced by the platform stack, so a
