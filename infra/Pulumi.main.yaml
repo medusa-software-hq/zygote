@@ -1,0 +1,3 @@
+config:
+  gcp:project: ms-root-cc216992
+  medusa-zygote:pulumiOrganization: jakub-trzebiatowski-medusa-software
