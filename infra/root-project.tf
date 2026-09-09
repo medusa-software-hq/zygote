@@ -6,9 +6,13 @@ data "google_project" "root" {
 
 resource "google_project_service" "root" {
   for_each = toset([
+    "cloudbilling.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
+    "orgpolicy.googleapis.com",
+    "secretmanager.googleapis.com",
+    "serviceusage.googleapis.com",
     "storage.googleapis.com",
     "sts.googleapis.com",
   ])
