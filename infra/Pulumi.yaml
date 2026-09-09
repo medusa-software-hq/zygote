@@ -1,0 +1,8 @@
+name: medusa-zygote
+runtime:
+  name: nodejs
+  options:
+    packagemanager: yarn
+description: >-
+  The bootstrap layer: the folder delegated to the platform stack, and the grants
+  defining what that stack may do.
