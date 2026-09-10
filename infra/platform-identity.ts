@@ -3,8 +3,8 @@ import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
 import {
   DEPLOY_OPERATIONS,
-  ESC_ENVIRONMENT,
   ESC_PROJECT,
+  ESC_READER_ENVIRONMENT,
   PLATFORM_PROJECT,
   PLATFORM_STACK,
   deploySubject,
@@ -103,7 +103,7 @@ new gcp.serviceaccount.IAMMember('platform-reader-workload-identity', {
   // `principal://` with an exact subject, not a set: one environment, one account.
   // The ESC subject names an environment and no operation, so whatever it can reach,
   // it can reach for any operation — which is why it reaches the reader.
-  member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
+  member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_READER_ENVIRONMENT)}`,
 });
 
 /**
