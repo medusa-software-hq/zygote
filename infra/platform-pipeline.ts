@@ -9,6 +9,7 @@ import {
 } from './platform-identity.ts';
 import {
   ESC_ENVIRONMENT,
+  ESC_SECRETS_ENVIRONMENT,
   ESC_PROJECT,
   PLATFORM_PROJECT,
   PLATFORM_REPOSITORY,
@@ -53,10 +54,10 @@ export const platformEnvironment = new service.Environment(
 # OIDC token, which names the stack and the operation.
 
 imports:
-  # Hand-managed, holding the GitHub App key the platform stack manages app
-  # repositories with. Kept out of this definition deliberately: this environment is
-  # owned declaratively, so anything set here by hand would be overwritten silently.
-  - platform/github
+  # Hand-managed. Holds the credentials no stack can mint: the GitHub App key and the
+  # Cloudflare token. Kept out of this definition because this one is replaced whole on
+  # every apply.
+  - ${ESC_PROJECT}/${ESC_SECRETS_ENVIRONMENT}
 
 values:
   gcp:
@@ -81,7 +82,9 @@ values:
 `),
       ),
   },
-  { import: `${pulumiOrganization}/${ESC_PROJECT}/${ESC_ENVIRONMENT}` },
+  // No `import` here: the environment this once adopted was `platform/gcp`, and it is
+  // in state already. Leaving the option would point a replacement at a name that does
+  // not exist yet.
 );
 
 /** Pull requests are previewed; merges to the default branch are applied. */
