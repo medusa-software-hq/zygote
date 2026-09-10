@@ -9,8 +9,9 @@ import {
 } from './platform-identity.ts';
 import {
   ESC_ENVIRONMENT,
-  ESC_SECRETS_ENVIRONMENT,
   ESC_PROJECT,
+  ESC_READER_ENVIRONMENT,
+  ESC_SECRETS_ENVIRONMENT,
   PLATFORM_PROJECT,
   PLATFORM_REPOSITORY,
   PLATFORM_STACK,
@@ -30,8 +31,13 @@ import {
  */
 
 /**
- * Mints a short-lived GCP credential by OIDC. Referenced by the platform stack, so a
- * local `up` and a deployment authenticate the same way and neither holds a key.
+ * Everything the platform stack inherits that is not a credential.
+ *
+ * No GCP login here on purpose. A referenced environment's `gcp:accessToken` is Pulumi
+ * configuration, and explicit configuration beats the credentials a deployment mints
+ * for itself — so a login here would quietly override the deployment's own identity,
+ * whichever account it named. The stack's credentials come from its OIDC token; a
+ * workstation opens the reader environment instead.
  */
 export const platformEnvironment = new service.Environment(
   'platform-gcp',
@@ -39,19 +45,9 @@ export const platformEnvironment = new service.Environment(
     organization: pulumiOrganization,
     project: ESC_PROJECT,
     name: ESC_ENVIRONMENT,
-    yaml: pulumi
-      .all([
-        bootstrapProject.number,
-        pool.workloadIdentityPoolId,
-        poolProvider.workloadIdentityPoolProviderId,
-        platformReaderServiceAccount.email,
-      ])
-      .apply(
-        ([projectNumber, workloadPoolId, providerId, serviceAccount]) =>
-          new pulumi.asset.StringAsset(`# Read-only. This mints the reader account, not the one that can change things —
-# opening an environment says nothing about which operation follows, so it grants the
-# credential that is safe for all of them. Applies get theirs from the deployment's own
-# OIDC token, which names the stack and the operation.
+    yaml: new pulumi.asset.StringAsset(`# Carries no credentials. Anything set here as pulumiConfig would override what a
+# deployment mints for itself, so the GCP login lives in platform/reader, which the
+# stack does not reference.
 
 imports:
   # Hand-managed. Holds the credentials no stack can mint: the GitHub App key and the
@@ -60,6 +56,43 @@ imports:
   - ${ESC_PROJECT}/${ESC_SECRETS_ENVIRONMENT}
 
 values:
+  environmentVariables:
+    # Deployments injects a short-lived GITHUB_TOKEN because this stack has the GitHub
+    # integration enabled. The GitHub provider reads that variable as a default, so the
+    # token lands in provider inputs and changes on every run — a permanent phantom diff
+    # on a stack whose plans are meant to be read. Blanked here because the provider
+    # authenticates as the App instead; empty is treated as unset.
+    GITHUB_TOKEN: ''
+`),
+  },
+  // No `import` here: the environment this once adopted was `platform/gcp`, and it is
+  // in state already. Leaving the option would point a replacement at a name that does
+  // not exist yet.
+);
+
+/**
+ * Read-only GCP credentials, for previewing from a workstation.
+ *
+ * Exposed as an environment variable and not as `pulumiConfig`, and not imported by
+ * the environment above, because both of those routes would reach the stack — and
+ * anything that reaches the stack overrides what a deployment mints for itself.
+ *
+ *   pulumi env run platform/reader -- pulumi preview
+ */
+export const platformReaderEnvironment = new service.Environment('platform-reader', {
+  organization: pulumiOrganization,
+  project: ESC_PROJECT,
+  name: ESC_READER_ENVIRONMENT,
+  yaml: pulumi
+    .all([
+      bootstrapProject.number,
+      pool.workloadIdentityPoolId,
+      poolProvider.workloadIdentityPoolProviderId,
+      platformReaderServiceAccount.email,
+    ])
+    .apply(
+      ([projectNumber, workloadPoolId, providerId, serviceAccount]) =>
+        new pulumi.asset.StringAsset(`values:
   gcp:
     login:
       fn::open::gcp-login:
@@ -68,24 +101,11 @@ values:
           workloadPoolId: ${workloadPoolId}
           providerId: ${providerId}
           serviceAccount: ${serviceAccount}
-  pulumiConfig:
-    gcp:accessToken: \${gcp.login.accessToken}
   environmentVariables:
     GOOGLE_OAUTH_ACCESS_TOKEN: \${gcp.login.accessToken}
-
-    # Deployments injects a short-lived GITHUB_TOKEN because this stack has the GitHub
-    # integration enabled. The GitHub provider reads that variable as a default, so the
-    # token lands in provider inputs and changes on every run — a permanent phantom diff
-    # on a stack whose plans are meant to be read. Blanked here because the provider
-    # authenticates as the App instead; empty is treated as unset.
-    GITHUB_TOKEN: ''
 `),
-      ),
-  },
-  // No `import` here: the environment this once adopted was `platform/gcp`, and it is
-  // in state already. Leaving the option would point a replacement at a name that does
-  // not exist yet.
-);
+    ),
+});
 
 /** Pull requests are previewed; merges to the default branch are applied. */
 export const platformDeploymentSettings = new service.DeploymentSettings(

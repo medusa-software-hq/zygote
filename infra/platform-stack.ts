@@ -28,6 +28,17 @@ export const ESC_ENVIRONMENT = 'main';
 export const ESC_SECRETS_ENVIRONMENT = 'main-secrets';
 
 /**
+ * Read-only credentials for previewing from a workstation.
+ *
+ * Deliberately not referenced by the stack. An environment the stack references
+ * supplies `gcp:accessToken` as Pulumi configuration, and explicit provider
+ * configuration beats the ambient credentials a deployment mints for itself — so
+ * putting these where the stack can see them silently demotes every deployment to the
+ * reader. Opened by hand instead, which is what `task preview` does.
+ */
+export const ESC_READER_ENVIRONMENT = 'reader';
+
+/**
  * The subject Pulumi Cloud puts in tokens issued for an ESC environment.
  *
  * Taken from a rejected exchange rather than from the documentation, which describes a
