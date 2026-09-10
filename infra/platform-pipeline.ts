@@ -61,6 +61,13 @@ values:
     gcp:accessToken: \${gcp.login.accessToken}
   environmentVariables:
     GOOGLE_OAUTH_ACCESS_TOKEN: \${gcp.login.accessToken}
+
+    # Deployments injects a short-lived GITHUB_TOKEN because this stack has the GitHub
+    # integration enabled. The GitHub provider reads that variable as a default, so the
+    # token lands in provider inputs and changes on every run — a permanent phantom diff
+    # on a stack whose plans are meant to be read. Blanked here because the provider
+    # authenticates as the App instead; empty is treated as unset.
+    GITHUB_TOKEN: ''
 `),
       ),
   },
