@@ -16,7 +16,16 @@ export const PLATFORM_PROJECT = 'medusa-platform';
 export const PLATFORM_STACK = 'main';
 
 export const ESC_PROJECT = 'platform';
-export const ESC_ENVIRONMENT = 'gcp';
+export const ESC_ENVIRONMENT = 'main';
+
+/**
+ * The hand-managed companion to the environment above.
+ *
+ * Two documents rather than one because this stack replaces the whole of the other on
+ * every apply: a value typed into it by hand would be overwritten silently, secret or
+ * not. The split is by who writes the document, not by what is in it.
+ */
+export const ESC_SECRETS_ENVIRONMENT = 'main-secrets';
 
 /**
  * The subject Pulumi Cloud puts in tokens issued for an ESC environment.
