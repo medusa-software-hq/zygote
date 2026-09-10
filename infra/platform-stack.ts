@@ -41,12 +41,18 @@ export const escSubject = (project: string, environment: string): string =>
 /**
  * Operations a deployment of the platform stack may authenticate for.
  *
- * `refresh` and `destroy` are absent on purpose: GCP matches subjects exactly and
- * allows no wildcard, so an operation with no binding cannot obtain a credential at
- * all. Removing a resource from the program is an `update` and still works; discarding
- * the whole stack does not.
+ * `destroy` is absent on purpose: GCP matches subjects exactly and allows no wildcard,
+ * so an operation with no binding cannot obtain a credential at all. Removing a
+ * resource from the program is an `update` and still works; discarding the whole stack
+ * does not.
+ *
+ * `refresh` is present despite reaching for the same account, because it reads the
+ * cloud and writes only Pulumi state. Without it nothing can detect drift — not a
+ * scheduled check, and not a person diagnosing an incident. The reader cannot stand in:
+ * refreshing needs read access inside every project this stack touches, and recovering
+ * afterwards needs write regardless.
  */
-export const DEPLOY_OPERATIONS = ['preview', 'update'] as const;
+export const DEPLOY_OPERATIONS = ['preview', 'update', 'refresh'] as const;
 
 /** The subject Pulumi Cloud puts in tokens issued for a deployment, one per operation. */
 export const deploySubject = (project: string, stack: string, operation: string): string =>
