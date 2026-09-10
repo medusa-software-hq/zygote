@@ -1,7 +1,12 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as service from '@pulumi/pulumiservice';
 import { bootstrapProject } from './bootstrap-project.ts';
-import { platformServiceAccount, pool, poolProvider } from './platform-identity.ts';
+import {
+  platformReaderServiceAccount,
+  platformServiceAccount,
+  pool,
+  poolProvider,
+} from './platform-identity.ts';
 import {
   ESC_ENVIRONMENT,
   ESC_PROJECT,
@@ -38,11 +43,16 @@ export const platformEnvironment = new service.Environment(
         bootstrapProject.number,
         pool.workloadIdentityPoolId,
         poolProvider.workloadIdentityPoolProviderId,
-        platformServiceAccount.email,
+        platformReaderServiceAccount.email,
       ])
       .apply(
         ([projectNumber, workloadPoolId, providerId, serviceAccount]) =>
-          new pulumi.asset.StringAsset(`imports:
+          new pulumi.asset.StringAsset(`# Read-only. This mints the reader account, not the one that can change things —
+# opening an environment says nothing about which operation follows, so it grants the
+# credential that is safe for all of them. Applies get theirs from the deployment's own
+# OIDC token, which names the stack and the operation.
+
+imports:
   # Hand-managed, holding the GitHub App key the platform stack manages app
   # repositories with. Kept out of this definition deliberately: this environment is
   # owned declaratively, so anything set here by hand would be overwritten silently.

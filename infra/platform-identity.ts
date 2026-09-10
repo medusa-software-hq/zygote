@@ -74,15 +74,35 @@ export const platformServiceAccount = new gcp.serviceaccount.Account(
 );
 
 /**
+ * A second identity for the same stack, able to read and nothing else.
+ *
+ * Previews are diffs, not writes, so they do not need the account that can change
+ * things. Splitting them is what lets the ESC environment stay usable from a
+ * workstation without that also being a way to apply from one.
+ */
+export const platformReaderServiceAccount = new gcp.serviceaccount.Account(
+  'platform-reader',
+  {
+    project: bootstrapProject.projectId,
+    accountId: 'platform-reader',
+    displayName: 'Platform (reader)',
+    description: 'Previews the platform stack. Holds no permission to change anything.',
+  },
+  dependsOn,
+);
+
+/**
  * Service account IAM changes take well over a minute to take effect here, and until
  * they do the failure is indistinguishable from a wrong principal: the token exchange
  * succeeds and only the impersonation afterwards is denied. Wait before concluding the
  * member is malformed.
  */
-new gcp.serviceaccount.IAMMember('platform-workload-identity', {
-  serviceAccountId: platformServiceAccount.name,
+new gcp.serviceaccount.IAMMember('platform-reader-workload-identity', {
+  serviceAccountId: platformReaderServiceAccount.name,
   role: 'roles/iam.workloadIdentityUser',
   // `principal://` with an exact subject, not a set: one environment, one account.
+  // The ESC subject names an environment and no operation, so whatever it can reach,
+  // it can reach for any operation — which is why it reaches the reader.
   member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
 });
 
