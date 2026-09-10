@@ -41,8 +41,18 @@ new gcp.organizations.IAMMember('platform-browser', {
   member,
 });
 
-/** Manage the hierarchy and create projects, but only beneath the delegated folder. */
-for (const role of ['roles/resourcemanager.folderAdmin', 'roles/resourcemanager.projectCreator']) {
+/**
+ * Manage the hierarchy and create projects, but only beneath the delegated folder.
+ *
+ * `projectDeleter` is the counterpart to `projectCreator`: `folderAdmin` does not carry
+ * `projects.delete`, so without it removing an app from the model would fail instead of
+ * tearing its project down.
+ */
+for (const role of [
+  'roles/resourcemanager.folderAdmin',
+  'roles/resourcemanager.projectCreator',
+  'roles/resourcemanager.projectDeleter',
+]) {
   new gcp.folder.IAMMember(`platform-${role.split('.')[1]}`, {
     folder: platformFolder.name,
     role,
