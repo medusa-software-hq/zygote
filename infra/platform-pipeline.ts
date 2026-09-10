@@ -42,7 +42,13 @@ export const platformEnvironment = new service.Environment(
       ])
       .apply(
         ([projectNumber, workloadPoolId, providerId, serviceAccount]) =>
-          new pulumi.asset.StringAsset(`values:
+          new pulumi.asset.StringAsset(`imports:
+  # Hand-managed, holding the GitHub App key the platform stack manages app
+  # repositories with. Kept out of this definition deliberately: this environment is
+  # owned declaratively, so anything set here by hand would be overwritten silently.
+  - platform/github
+
+values:
   gcp:
     login:
       fn::open::gcp-login:
