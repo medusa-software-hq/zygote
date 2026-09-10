@@ -1,6 +1,6 @@
 import * as gcp from '@pulumi/gcp';
 import { billingAccount, organization } from './organization.ts';
-import { platformServiceAccount } from './platform-identity.ts';
+import { platformReaderServiceAccount, platformServiceAccount } from './platform-identity.ts';
 
 /**
  * What the platform stack is allowed to do.
@@ -65,4 +65,26 @@ new gcp.billing.AccountIamMember('platform-billing-user', {
   billingAccountId: billingAccount.id,
   role: 'roles/billing.user',
   member,
+});
+
+/**
+ * What the reader may see.
+ *
+ * Exactly what the two data sources at the top of the platform program need to
+ * resolve, and nothing else: the organization by domain, and the billing account by
+ * display name. `billing.viewer` rather than the `billing.user` above because this
+ * account's whole justification is that it cannot write — `billing.user` carries
+ * `resourceAssociations.create`, inert here only because no project grants the other
+ * half, and an invariant resting on an accident is not one.
+ */
+new gcp.organizations.IAMMember('platform-reader-browser', {
+  orgId: organization.orgId,
+  role: 'roles/browser',
+  member: platformReaderServiceAccount.member,
+});
+
+new gcp.billing.AccountIamMember('platform-reader-billing-viewer', {
+  billingAccountId: billingAccount.id,
+  role: 'roles/billing.viewer',
+  member: platformReaderServiceAccount.member,
 });
