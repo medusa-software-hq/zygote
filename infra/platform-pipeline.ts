@@ -139,14 +139,6 @@ export const platformDeploymentSettings = new service.DeploymentSettings(
     // environment above: this token's subject names the stack and the operation, so a
     // run outside the pipeline cannot produce it.
     operationContext: {
-      // TEMPORARY. A refresh authenticates as something holding organization-level read
-      // but no access inside the projects this stack owns, and nothing visible from
-      // outside says which account that is. Remove once answered.
-      preRunCommands: [
-        `python3 -c "import json,os;c=json.loads(os.environ.get('GOOGLE_CREDENTIALS') or '{}');print('CRED_TYPE',c.get('type'));print('IMPERSONATES',c.get('service_account_impersonation_url'));print('AUDIENCE',c.get('audience'))"`,
-        'sh -c \'for v in GOOGLE_CREDENTIALS GOOGLE_OAUTH_ACCESS_TOKEN GOOGLE_APPLICATION_CREDENTIALS; do eval "x=\\$$v"; [ -n "$x" ] && echo "ENV $v=set" || echo "ENV $v=unset"; done\'',
-      ],
-
       oidc: {
         gcp: {
           projectId: bootstrapProject.number,
