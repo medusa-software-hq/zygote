@@ -101,6 +101,20 @@ export const platformDeploymentSettings = new service.DeploymentSettings(
         repoDir: 'infra',
       },
     },
+
+    // Where the deployment's own GCP credentials come from. Distinct from the ESC
+    // environment above: this token's subject names the stack and the operation, so a
+    // run outside the pipeline cannot produce it.
+    operationContext: {
+      oidc: {
+        gcp: {
+          projectId: bootstrapProject.number,
+          workloadPoolId: pool.workloadIdentityPoolId,
+          providerId: poolProvider.workloadIdentityPoolProviderId,
+          serviceAccount: platformServiceAccount.email,
+        },
+      },
+    },
   },
   { import: `${pulumiOrganization}/${PLATFORM_PROJECT}/${PLATFORM_STACK}` },
 );

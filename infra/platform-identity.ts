@@ -1,7 +1,16 @@
 import * as gcp from '@pulumi/gcp';
 import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
-import { ESC_ENVIRONMENT, ESC_PROJECT, escSubject, pulumiOrganization } from './platform-stack.ts';
+import {
+  DEPLOY_OPERATIONS,
+  ESC_ENVIRONMENT,
+  ESC_PROJECT,
+  PLATFORM_PROJECT,
+  PLATFORM_STACK,
+  deploySubject,
+  escSubject,
+  pulumiOrganization,
+} from './platform-stack.ts';
 
 /**
  * The identity the platform stack runs as.
@@ -45,8 +54,9 @@ export const poolProvider = new gcp.iam.WorkloadIdentityPoolProvider(
     oidc: {
       issuerUri: 'https://api.pulumi.com/oidc',
       // Pulumi will not issue a token bearing another organization's audience, so
-      // this is the discriminator that matters.
-      allowedAudiences: [`gcp:${pulumiOrganization}`],
+      // this is the discriminator that matters. Two forms, because ESC and Deployments
+      // issue under different audiences for the same organization.
+      allowedAudiences: [`gcp:${pulumiOrganization}`, pulumiOrganization],
     },
   },
   dependsOn,
@@ -75,3 +85,17 @@ new gcp.serviceaccount.IAMMember('platform-workload-identity', {
   // `principal://` with an exact subject, not a set: one environment, one account.
   member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
 });
+
+/**
+ * The same account, assumable by a deployment of the platform stack.
+ *
+ * Bound per operation, since the subject carries the operation and GCP has no wildcard
+ * — which is what makes the omissions in `DEPLOY_OPERATIONS` mean something.
+ */
+for (const operation of DEPLOY_OPERATIONS) {
+  new gcp.serviceaccount.IAMMember(`platform-deploy-${operation}`, {
+    serviceAccountId: platformServiceAccount.name,
+    role: 'roles/iam.workloadIdentityUser',
+    member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${deploySubject(PLATFORM_PROJECT, PLATFORM_STACK, operation)}`,
+  });
+}

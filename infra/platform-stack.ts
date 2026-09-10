@@ -28,3 +28,17 @@ export const ESC_ENVIRONMENT = 'gcp';
  */
 export const escSubject = (project: string, environment: string): string =>
   `pulumi:environments:org:${pulumiOrganization}:env:${project}/${environment}`;
+
+/**
+ * Operations a deployment of the platform stack may authenticate for.
+ *
+ * `refresh` and `destroy` are absent on purpose: GCP matches subjects exactly and
+ * allows no wildcard, so an operation with no binding cannot obtain a credential at
+ * all. Removing a resource from the program is an `update` and still works; discarding
+ * the whole stack does not.
+ */
+export const DEPLOY_OPERATIONS = ['preview', 'update'] as const;
+
+/** The subject Pulumi Cloud puts in tokens issued for a deployment, one per operation. */
+export const deploySubject = (project: string, stack: string, operation: string): string =>
+  `pulumi:deploy:org:${pulumiOrganization}:project:${project}:stack:${stack}:operation:${operation}:scope:write`;
