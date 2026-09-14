@@ -22,6 +22,8 @@ export const bootstrapProject = new gcp.organizations.Project('bootstrap', {
 });
 
 export const bootstrapServices = [
+  // For the platform budget, whose API calls this project pays for.
+  'billingbudgets.googleapis.com',
   'cloudbilling.googleapis.com',
   'cloudresourcemanager.googleapis.com',
   'iam.googleapis.com',

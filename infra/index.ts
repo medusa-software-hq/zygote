@@ -1,4 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
+import { platformBudget } from './budget.ts';
 import { organization } from './organization.ts';
 import { platformFolder } from './platform-delegation.ts';
 import { platformServiceAccount, pool, poolProvider } from './platform-identity.ts';
@@ -9,6 +10,8 @@ import { serviceEnvelope } from './service-envelope.ts';
 export const organizationId = organization.orgId;
 
 export const serviceEnvelopeName = serviceEnvelope.name;
+
+export const platformBudgetName = platformBudget.name;
 
 export const serviceAccountKeyPolicyNames = [keysPermitted.name, keyLifetime.name];
 
