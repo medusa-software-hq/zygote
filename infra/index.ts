@@ -1,8 +1,4 @@
 import * as pulumi from '@pulumi/pulumi';
-// Imported for its resources alone: the credentials the platform stack is given exist
-// whether or not anything here names them. Its environment starts reading them in a later
-// change, once the values are in.
-import './platform-secrets.ts';
 import { platformBudget } from './budget.ts';
 import { organization } from './organization.ts';
 import { platformFolder } from './platform-delegation.ts';

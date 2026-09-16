@@ -19,15 +19,6 @@ export const ESC_PROJECT = 'platform';
 export const ESC_ENVIRONMENT = 'main';
 
 /**
- * The hand-managed companion to the environment above.
- *
- * Two documents rather than one because this stack replaces the whole of the other on
- * every apply: a value typed into it by hand would be overwritten silently, secret or
- * not. The split is by who writes the document, not by what is in it.
- */
-export const ESC_SECRETS_ENVIRONMENT = 'main-secrets';
-
-/**
  * Read-only credentials for previewing from a workstation.
  *
  * Deliberately not referenced by the stack. An environment the stack references
@@ -37,6 +28,16 @@ export const ESC_SECRETS_ENVIRONMENT = 'main-secrets';
  * reader. Opened by hand instead, which is what `task preview` does.
  */
 export const ESC_READER_ENVIRONMENT = 'reader';
+
+/**
+ * A reference to another value in the same ESC document.
+ *
+ * ESC resolves `${...}` as it opens an environment, so a reference is written rather than
+ * interpolated here. Built by this rather than spelled out at each use, so that no plain string
+ * in this program contains `${`: one nearly always means a template literal somebody forgot to
+ * mark, and the rule that catches that mistake is worth keeping pointed at everything else.
+ */
+export const escReference = (path: string): string => `\${${path}}`;
 
 /**
  * The subject Pulumi Cloud puts in tokens issued for an ESC environment.
