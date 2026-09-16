@@ -14,7 +14,7 @@ import { platformSecretsReaderServiceAccount } from './platform-identity.ts';
  * Only the containers are declared here, never a version. The value goes in by hand, so no
  * credential passes through this program, its state, or a plan somebody reads:
  *
- *   gcloud secrets versions add <name> --project=<bootstrap project> --data-file=<file>
+ *   gcloud secrets versions add platform-<name> --project=<bootstrap project> --data-file=<file>
  *
  * An empty container is not an error here. It becomes one where something opens it — which is
  * why the values go in before the platform environment is pointed at them.
@@ -30,11 +30,17 @@ const dependsOn = { dependsOn: bootstrapServices };
  * reviewed.
  */
 const platformSecret = (name: string): gcp.secretmanager.Secret => {
+  // Qualified, because the project holding these is the organization's rather than the
+  // platform's — it sits at the organization root precisely so that nothing inside the
+  // delegated folder can reach its own permissions. Whatever is bootstrapped next will want
+  // a Cloudflare token of its own, and an unqualified name would have taken the obvious one.
+  const secretId = `platform-${name}`;
+
   const secret = new gcp.secretmanager.Secret(
-    name,
+    secretId,
     {
       project: bootstrapProject.projectId,
-      secretId: name,
+      secretId,
 
       // Google keeps it wherever it likes. Nothing about these is regional, and naming regions
       // would be a list to keep in step with nothing.
@@ -43,7 +49,7 @@ const platformSecret = (name: string): gcp.secretmanager.Secret => {
     dependsOn,
   );
 
-  new gcp.secretmanager.SecretIamMember(name, {
+  new gcp.secretmanager.SecretIamMember(secretId, {
     project: bootstrapProject.projectId,
     secretId: secret.secretId,
     role: 'roles/secretmanager.secretAccessor',
@@ -56,8 +62,8 @@ const platformSecret = (name: string): gcp.secretmanager.Secret => {
 /**
  * Everything the platform stack is given.
  *
- * The key is what the stack's environment calls it; the name is what it is called in Secret
- * Manager, which is what the command above takes. Each is a credential a third party will not
+ * The key is what the stack's environment calls it; the name below, under a `platform-` prefix,
+ * is what it is called in Secret Manager, which is what the command above takes. Each is a credential a third party will not
  * federate — anything obtainable by OIDC, or mintable by a stack, does not belong here.
  */
 export const platformSecrets = {
