@@ -63,6 +63,25 @@ for (const role of [
   });
 }
 
+/**
+ * Owner of everything beneath the delegated folder.
+ *
+ * What the platform stack does inside a project — identity pools, secrets, service accounts,
+ * registries, the services a project enables — is too broad to enumerate without missing
+ * something, and a missed permission surfaces only as a failed deployment.
+ *
+ * This power existed before without being written anywhere: Google makes a project's creator its
+ * owner, and the account that created every project here was replaced, taking those grants with
+ * it. Declared here so what the stack actually runs with is a line somebody reviewed.
+ *
+ * It does not reach the bootstrap project, which sits outside this folder for exactly that reason.
+ */
+new gcp.folder.IAMMember('platform-provisioner-owner', {
+  folder: platformFolder.name,
+  role: 'roles/owner',
+  member,
+});
+
 /** Attach billing to projects the platform stack creates. */
 new gcp.billing.AccountIamMember('platform-provisioner-billing-user', {
   billingAccountId: billingAccount.id,
