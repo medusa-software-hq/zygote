@@ -30,6 +30,16 @@ export const ESC_ENVIRONMENT = 'main';
 export const ESC_READER_ENVIRONMENT = 'reader';
 
 /**
+ * A reference to another value in the same ESC document.
+ *
+ * ESC resolves `${...}` as it opens an environment, so a reference is written rather than
+ * interpolated here. Built by this rather than spelled out at each use, so that no plain string
+ * in this program contains `${`: one nearly always means a template literal somebody forgot to
+ * mark, and the rule that catches that mistake is worth keeping pointed at everything else.
+ */
+export const escReference = (path: string): string => `\${${path}}`;
+
+/**
  * The subject Pulumi Cloud puts in tokens issued for an ESC environment.
  *
  * Taken from a rejected exchange rather than from the documentation, which describes a

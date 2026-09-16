@@ -1,4 +1,3 @@
-import * as pulumi from '@pulumi/pulumi';
 import * as service from '@pulumi/pulumiservice';
 import { bootstrapProject } from './bootstrap-project.ts';
 import {
@@ -12,12 +11,14 @@ import { platformSecrets } from './platform-secrets.ts';
 import {
   ESC_ENVIRONMENT,
   ESC_PROJECT,
+  escReference,
   ESC_READER_ENVIRONMENT,
   PLATFORM_PROJECT,
   PLATFORM_REPOSITORY,
   PLATFORM_STACK,
   pulumiOrganization,
 } from './platform-stack.ts';
+import { yamlAsset } from './yaml-asset.ts';
 
 /**
  * How the platform stack runs.
@@ -37,13 +38,6 @@ import {
  * Its credentials are read out of Secret Manager as this is opened, rather than kept here as
  * ciphertext. The value is then versioned and audited where it lives, rotating one is a
  * `gcloud` command that touches nothing in Pulumi, and who may have it is an IAM decision.
- *
- * The login exists to be handed to the secrets provider, and to nothing else. It is deliberately
- * not mapped into `environmentVariables` or `pulumiConfig`, and must not be: a GCP credential
- * that reaches the stack is explicit provider configuration, which beats the credentials a
- * deployment mints for itself — so mapping it would quietly demote every deployment to the
- * account that may only read secrets. That is the same trap `platform/reader` exists to avoid,
- * arrived at from the other direction.
  */
 export const platformEnvironment = new service.Environment(
   'platform-gcp',
@@ -51,81 +45,76 @@ export const platformEnvironment = new service.Environment(
     organization: pulumiOrganization,
     project: ESC_PROJECT,
     name: ESC_ENVIRONMENT,
-    yaml: pulumi
-      .all({
-        projectNumber: bootstrapProject.number,
-        workloadPoolId: pool.workloadIdentityPoolId,
-        providerId: poolProvider.workloadIdentityPoolProviderId,
-        serviceAccount: platformSecretsReaderServiceAccount.email,
-        githubAppPrivateKey: platformSecrets.githubAppPrivateKey.secretId,
-        cloudflareApiToken: platformSecrets.cloudflareApiToken.secretId,
-        accessClientSecret: platformSecrets.accessIdentityProviderClientSecret.secretId,
-        neonApiKey: platformSecrets.neonApiKey.secretId,
-      })
-      .apply(
-        ({
-          projectNumber,
-          workloadPoolId,
-          providerId,
-          serviceAccount,
-          githubAppPrivateKey,
-          cloudflareApiToken,
-          accessClientSecret,
-          neonApiKey,
-        }) =>
-          new pulumi.asset.StringAsset(`# What the platform stack is configured with, and where its credentials come from.
-#
-# The login below is handed to the secrets provider and mapped nowhere. A GCP credential
-# reaching the stack would be explicit provider configuration, which beats what a deployment
-# mints for itself — every deployment would run as the account that may only read secrets.
+    yaml: yamlAsset({
+      values: {
+        gcp: {
+          /**
+           * Handed to the secrets provider below, and mapped nowhere else.
+           *
+           * It must stay that way. A GCP credential that reaches the stack is explicit provider
+           * configuration, which beats the credentials a deployment mints for itself — so
+           * mapping this into `environmentVariables` or `pulumiConfig` would quietly demote
+           * every deployment to an account that may do nothing but read four secrets. It is the
+           * same trap `platform/reader` exists to avoid, arrived at from the other direction.
+           */
+          login: {
+            'fn::open::gcp-login': {
+              // A number rather than the string this arrives as: the provider's schema asks for
+              // one, and YAML would quote a string here.
+              project: bootstrapProject.number.apply(Number),
+              oidc: {
+                workloadPoolId: pool.workloadIdentityPoolId,
+                providerId: poolProvider.workloadIdentityPoolProviderId,
+                serviceAccount: platformSecretsReaderServiceAccount.email,
+              },
+            },
+          },
+          secrets: {
+            'fn::open::gcp-secrets': {
+              login: escReference('gcp.login'),
+              access: {
+                githubAppPrivateKey: { name: platformSecrets.githubAppPrivateKey.secretId },
+                cloudflareApiToken: { name: platformSecrets.cloudflareApiToken.secretId },
+                accessIdentityProviderClientSecret: {
+                  name: platformSecrets.accessIdentityProviderClientSecret.secretId,
+                },
+                neonApiKey: { name: platformSecrets.neonApiKey.secretId },
+              },
+            },
+          },
+        },
 
-values:
-  gcp:
-    login:
-      fn::open::gcp-login:
-        project: ${projectNumber}
-        oidc:
-          workloadPoolId: ${workloadPoolId}
-          providerId: ${providerId}
-          serviceAccount: ${serviceAccount}
-    secrets:
-      fn::open::gcp-secrets:
-        login: \${gcp.login}
-        access:
-          githubAppPrivateKey:
-            name: ${githubAppPrivateKey}
-          cloudflareApiToken:
-            name: ${cloudflareApiToken}
-          accessIdentityProviderClientSecret:
-            name: ${accessClientSecret}
-          neonApiKey:
-            name: ${neonApiKey}
+        pulumiConfig: {
+          // Which GitHub App this stack acts as. Identifiers rather than credentials — the key
+          // is the credential, and it is read above.
+          // https://github.com/organizations/medusa-software-hq/settings/apps/medusa-platform-terraformer
+          'medusa-platform:githubAppId': '4874543',
+          // https://github.com/organizations/medusa-software-hq/settings/installations/160089048
+          'medusa-platform:githubAppInstallationId': '160089048',
+          'medusa-platform:githubAppPrivateKey': escReference('gcp.secrets.githubAppPrivateKey'),
 
-  pulumiConfig:
-    # Which GitHub App this stack acts as. Identifiers rather than credentials — the key is
-    # the credential, and it is read above.
-    # https://github.com/organizations/medusa-software-hq/settings/apps/medusa-platform-terraformer
-    medusa-platform:githubAppId: '4874543'
-    # https://github.com/organizations/medusa-software-hq/settings/installations/160089048
-    medusa-platform:githubAppInstallationId: '160089048'
-    medusa-platform:githubAppPrivateKey: \${gcp.secrets.githubAppPrivateKey}
+          // https://dash.cloudflare.com/b703ded0019355a0913800063af2a5f5
+          'medusa-platform:cloudflareAccountId': 'b703ded0019355a0913800063af2a5f5',
+          'medusa-platform:accessIdentityProviderClientSecret': escReference(
+            'gcp.secrets.accessIdentityProviderClientSecret',
+          ),
 
-    # https://dash.cloudflare.com/b703ded0019355a0913800063af2a5f5
-    medusa-platform:cloudflareAccountId: 'b703ded0019355a0913800063af2a5f5'
-    medusa-platform:accessIdentityProviderClientSecret: \${gcp.secrets.accessIdentityProviderClientSecret}
+          'cloudflare:apiToken': escReference('gcp.secrets.cloudflareApiToken'),
+          'neon:apiKey': escReference('gcp.secrets.neonApiKey'),
+        },
 
-    cloudflare:apiToken: \${gcp.secrets.cloudflareApiToken}
-    neon:apiKey: \${gcp.secrets.neonApiKey}
-
-  environmentVariables:
-    # Deployments injects a short-lived GITHUB_TOKEN because this stack has the GitHub
-    # integration enabled. The GitHub provider reads that variable as a default, so the
-    # token lands in provider inputs and changes on every run — a permanent phantom diff
-    # on a stack whose plans are meant to be read. Blanked here because the provider
-    # authenticates as the App instead; empty is treated as unset.
-    GITHUB_TOKEN: ''
-`),
-      ),
+        environmentVariables: {
+          /**
+           * Deployments injects a short-lived GITHUB_TOKEN because this stack has the GitHub
+           * integration enabled. The GitHub provider reads that variable as a default, so the
+           * token lands in provider inputs and changes on every run — a permanent phantom diff
+           * on a stack whose plans are meant to be read. Blanked here because the provider
+           * authenticates as the App instead; empty is treated as unset.
+           */
+          GITHUB_TOKEN: '',
+        },
+      },
+    }),
   },
   // No `import` here: the environment this once adopted was `platform/gcp`, and it is
   // in state already. Leaving the option would point a replacement at a name that does
@@ -145,28 +134,28 @@ export const platformReaderEnvironment = new service.Environment('platform-reade
   organization: pulumiOrganization,
   project: ESC_PROJECT,
   name: ESC_READER_ENVIRONMENT,
-  yaml: pulumi
-    .all([
-      bootstrapProject.number,
-      pool.workloadIdentityPoolId,
-      poolProvider.workloadIdentityPoolProviderId,
-      platformReaderServiceAccount.email,
-    ])
-    .apply(
-      ([projectNumber, workloadPoolId, providerId, serviceAccount]) =>
-        new pulumi.asset.StringAsset(`values:
-  gcp:
-    login:
-      fn::open::gcp-login:
-        project: ${projectNumber}
-        oidc:
-          workloadPoolId: ${workloadPoolId}
-          providerId: ${providerId}
-          serviceAccount: ${serviceAccount}
-  environmentVariables:
-    GOOGLE_OAUTH_ACCESS_TOKEN: \${gcp.login.accessToken}
-`),
-    ),
+  yaml: yamlAsset({
+    values: {
+      gcp: {
+        login: {
+          'fn::open::gcp-login': {
+            project: bootstrapProject.number.apply(Number),
+            oidc: {
+              workloadPoolId: pool.workloadIdentityPoolId,
+              providerId: poolProvider.workloadIdentityPoolProviderId,
+              serviceAccount: platformReaderServiceAccount.email,
+            },
+          },
+        },
+      },
+
+      // Unlike the document above, this one is meant to reach a CLI — which is safe only
+      // because the stack never references this environment.
+      environmentVariables: {
+        GOOGLE_OAUTH_ACCESS_TOKEN: escReference('gcp.login.accessToken'),
+      },
+    },
+  }),
 });
 
 /** Pull requests are previewed; merges to the default branch are applied. */
