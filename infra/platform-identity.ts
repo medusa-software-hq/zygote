@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
 import {
   DEPLOY_OPERATIONS,
+  ESC_ENVIRONMENT,
   ESC_PROJECT,
   ESC_READER_ENVIRONMENT,
   PLATFORM_PROJECT,
@@ -62,13 +63,20 @@ export const poolProvider = new gcp.iam.WorkloadIdentityPoolProvider(
   dependsOn,
 );
 
-export const platformServiceAccount = new gcp.serviceaccount.Account(
-  'platform',
+/**
+ * The identity that forms the platform.
+ *
+ * Not the platform, and not the stack: the account a run of that stack assumes to make the
+ * folders, projects and grants beneath the delegated folder. Named for what it does, because
+ * `platform` read as though this were the thing itself.
+ */
+export const platformProvisionerServiceAccount = new gcp.serviceaccount.Account(
+  'platform-provisioner',
   {
     project: bootstrapProject.projectId,
-    accountId: 'platform',
-    displayName: 'Platform',
-    description: 'Runs the platform stack.',
+    accountId: 'platform-provisioner',
+    displayName: 'Platform (provisioner)',
+    description: 'Applies the platform stack, which is what forms the platform.',
   },
   dependsOn,
 );
@@ -107,14 +115,45 @@ new gcp.serviceaccount.IAMMember('platform-reader-workload-identity', {
 });
 
 /**
+ * A third identity, holding nothing but the right to read what the platform stack is given.
+ *
+ * ESC assumes it while opening the platform environment, so the binding below names that
+ * environment's subject rather than the reader's. It is a separate account from both of the
+ * others because reading a credential and using one are different powers, and an account that
+ * can do both would hand whoever reaches either of them the other.
+ *
+ * It carries no role in any project. What it may read is granted on each secret, one at a time,
+ * where those secrets are declared.
+ */
+export const platformSecretsReaderServiceAccount = new gcp.serviceaccount.Account(
+  'platform-secrets-reader',
+  {
+    project: bootstrapProject.projectId,
+    accountId: 'platform-secrets-reader',
+    displayName: 'Platform (secrets reader)',
+    description: 'Reads the credentials the platform stack is given, and nothing else.',
+  },
+  dependsOn,
+);
+
+new gcp.serviceaccount.IAMMember('platform-secrets-reader-workload-identity', {
+  serviceAccountId: platformSecretsReaderServiceAccount.name,
+  role: 'roles/iam.workloadIdentityUser',
+  // The environment the stack draws its configuration from, which is the one whose secrets
+  // have to be opened. An environment's subject names no operation, so this is reachable
+  // whenever that environment is opened — by a deployment, and by anyone who may open it.
+  member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
+});
+
+/**
  * The same account, assumable by a deployment of the platform stack.
  *
  * Bound per operation, since the subject carries the operation and GCP has no wildcard
  * — which is what makes the omissions in `DEPLOY_OPERATIONS` mean something.
  */
 for (const operation of DEPLOY_OPERATIONS) {
-  new gcp.serviceaccount.IAMMember(`platform-deploy-${operation}`, {
-    serviceAccountId: platformServiceAccount.name,
+  new gcp.serviceaccount.IAMMember(`platform-provisioner-${operation}`, {
+    serviceAccountId: platformProvisionerServiceAccount.name,
     role: 'roles/iam.workloadIdentityUser',
     member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${deploySubject(PLATFORM_PROJECT, PLATFORM_STACK, operation)}`,
   });

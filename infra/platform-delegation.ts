@@ -1,6 +1,9 @@
 import * as gcp from '@pulumi/gcp';
 import { billingAccount, organization } from './organization.ts';
-import { platformReaderServiceAccount, platformServiceAccount } from './platform-identity.ts';
+import {
+  platformProvisionerServiceAccount,
+  platformReaderServiceAccount,
+} from './platform-identity.ts';
 
 /**
  * What the platform stack is allowed to do.
@@ -16,7 +19,7 @@ import { platformReaderServiceAccount, platformServiceAccount } from './platform
  * they name arrives as configuration.
  */
 
-const member = platformServiceAccount.member;
+const member = platformProvisionerServiceAccount.member;
 
 /**
  * Everything the platform stack manages lives beneath this folder.
@@ -35,7 +38,7 @@ export const platformFolder = new gcp.organizations.Folder(
 );
 
 /** Read-only organization metadata, so the organization and its folders resolve. */
-new gcp.organizations.IAMMember('platform-browser', {
+new gcp.organizations.IAMMember('platform-provisioner-browser', {
   orgId: organization.orgId,
   role: 'roles/browser',
   member,
@@ -53,7 +56,7 @@ for (const role of [
   'roles/resourcemanager.projectCreator',
   'roles/resourcemanager.projectDeleter',
 ]) {
-  new gcp.folder.IAMMember(`platform-${role.split('.')[1]}`, {
+  new gcp.folder.IAMMember(`platform-provisioner-${role.split('.')[1]}`, {
     folder: platformFolder.name,
     role,
     member,
@@ -61,7 +64,7 @@ for (const role of [
 }
 
 /** Attach billing to projects the platform stack creates. */
-new gcp.billing.AccountIamMember('platform-billing-user', {
+new gcp.billing.AccountIamMember('platform-provisioner-billing-user', {
   billingAccountId: billingAccount.id,
   role: 'roles/billing.user',
   member,

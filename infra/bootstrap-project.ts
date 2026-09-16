@@ -28,6 +28,9 @@ export const bootstrapServices = [
   'cloudresourcemanager.googleapis.com',
   'iam.googleapis.com',
   'iamcredentials.googleapis.com',
+  // Holds the credentials the platform stack is given, which used to be ciphertext in its
+  // own environment.
+  'secretmanager.googleapis.com',
   'serviceusage.googleapis.com',
   'sts.googleapis.com',
 ].map(
