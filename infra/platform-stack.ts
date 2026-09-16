@@ -19,15 +19,6 @@ export const ESC_PROJECT = 'platform';
 export const ESC_ENVIRONMENT = 'main';
 
 /**
- * The hand-managed companion to the environment above.
- *
- * Two documents rather than one because this stack replaces the whole of the other on
- * every apply: a value typed into it by hand would be overwritten silently, secret or
- * not. The split is by who writes the document, not by what is in it.
- */
-export const ESC_SECRETS_ENVIRONMENT = 'main-secrets';
-
-/**
  * Read-only credentials for previewing from a workstation.
  *
  * Deliberately not referenced by the stack. An environment the stack references
