@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
 import {
   DEPLOY_OPERATIONS,
+  ESC_ENVIRONMENT,
   ESC_PROJECT,
   ESC_READER_ENVIRONMENT,
   PLATFORM_PROJECT,
@@ -104,6 +105,37 @@ new gcp.serviceaccount.IAMMember('platform-reader-workload-identity', {
   // The ESC subject names an environment and no operation, so whatever it can reach,
   // it can reach for any operation — which is why it reaches the reader.
   member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_READER_ENVIRONMENT)}`,
+});
+
+/**
+ * A third identity, holding nothing but the right to read what the platform stack is given.
+ *
+ * ESC assumes it while opening the platform environment, so the binding below names that
+ * environment's subject rather than the reader's. It is a separate account from both of the
+ * others because reading a credential and using one are different powers, and an account that
+ * can do both would hand whoever reaches either of them the other.
+ *
+ * It carries no role in any project. What it may read is granted on each secret, one at a time,
+ * where those secrets are declared.
+ */
+export const platformSecretsServiceAccount = new gcp.serviceaccount.Account(
+  'platform-secrets',
+  {
+    project: bootstrapProject.projectId,
+    accountId: 'platform-secrets',
+    displayName: 'Platform (secrets)',
+    description: 'Reads the credentials the platform stack is given, and nothing else.',
+  },
+  dependsOn,
+);
+
+new gcp.serviceaccount.IAMMember('platform-secrets-workload-identity', {
+  serviceAccountId: platformSecretsServiceAccount.name,
+  role: 'roles/iam.workloadIdentityUser',
+  // The environment the stack draws its configuration from, which is the one whose secrets
+  // have to be opened. An environment's subject names no operation, so this is reachable
+  // whenever that environment is opened — by a deployment, and by anyone who may open it.
+  member: pulumi.interpolate`principal://iam.googleapis.com/${pool.name}/subject/${escSubject(ESC_PROJECT, ESC_ENVIRONMENT)}`,
 });
 
 /**
