@@ -1,7 +1,7 @@
 import * as gcp from '@pulumi/gcp';
 import * as pulumi from '@pulumi/pulumi';
 import { bootstrapProject, bootstrapServices } from './bootstrap-project.ts';
-import { platformSecretsServiceAccount } from './platform-identity.ts';
+import { platformSecretsReaderServiceAccount } from './platform-identity.ts';
 
 /**
  * The credentials the platform stack cannot mint for itself.
@@ -47,7 +47,7 @@ const platformSecret = (name: string): gcp.secretmanager.Secret => {
     project: bootstrapProject.projectId,
     secretId: secret.secretId,
     role: 'roles/secretmanager.secretAccessor',
-    member: pulumi.interpolate`serviceAccount:${platformSecretsServiceAccount.email}`,
+    member: pulumi.interpolate`serviceAccount:${platformSecretsReaderServiceAccount.email}`,
   });
 
   return secret;

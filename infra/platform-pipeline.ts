@@ -2,8 +2,8 @@ import * as pulumi from '@pulumi/pulumi';
 import * as service from '@pulumi/pulumiservice';
 import { bootstrapProject } from './bootstrap-project.ts';
 import {
+  platformProvisionerServiceAccount,
   platformReaderServiceAccount,
-  platformServiceAccount,
   pool,
   poolProvider,
 } from './platform-identity.ts';
@@ -144,7 +144,7 @@ export const platformDeploymentSettings = new service.DeploymentSettings(
           projectId: bootstrapProject.number,
           workloadPoolId: pool.workloadIdentityPoolId,
           providerId: poolProvider.workloadIdentityPoolProviderId,
-          serviceAccount: platformServiceAccount.email,
+          serviceAccount: platformProvisionerServiceAccount.email,
         },
       },
     },

@@ -6,7 +6,7 @@ import './platform-secrets.ts';
 import { platformBudget } from './budget.ts';
 import { organization } from './organization.ts';
 import { platformFolder } from './platform-delegation.ts';
-import { platformServiceAccount, pool, poolProvider } from './platform-identity.ts';
+import { platformProvisionerServiceAccount, pool, poolProvider } from './platform-identity.ts';
 import { platformDeploymentSettings, platformEnvironment } from './platform-pipeline.ts';
 import { keyLifetime, keysPermitted } from './service-account-keys.ts';
 import { serviceEnvelope } from './service-envelope.ts';
@@ -22,7 +22,7 @@ export const serviceAccountKeyPolicyNames = [keysPermitted.name, keyLifetime.nam
 //region Handed to the platform stack
 
 export const platformFolderName = platformFolder.name;
-export const platformServiceAccountEmail = platformServiceAccount.email;
+export const platformProvisionerServiceAccountEmail = platformProvisionerServiceAccount.email;
 export const workloadIdentityPoolName = pool.name;
 export const workloadIdentityProviderName = poolProvider.name;
 
