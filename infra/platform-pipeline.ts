@@ -87,7 +87,7 @@ export const platformEnvironment = new service.Environment(
         pulumiConfig: {
           // Which GitHub App this stack acts as. Identifiers rather than credentials — the key
           // is the credential, and it is read above.
-          // https://github.com/organizations/medusa-software-hq/settings/apps/medusa-platform-terraformer
+          // https://github.com/organizations/medusa-software-hq/settings/apps/medusa-platform-provisioner
           'medusa-platform:githubAppId': '4874543',
           // https://github.com/organizations/medusa-software-hq/settings/installations/160089048
           'medusa-platform:githubAppInstallationId': '160089048',
